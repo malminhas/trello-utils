@@ -236,7 +236,6 @@ class TrelloDataProcessor(object):
         ax.set_xlabel('count')
         name = '{}Snapshot_{}.png'.format(desc, today)
         plt.savefig(name)
-        plt.show()
         return name
 
     def createCardTimeSeriesStackedBarChart(self, counts, desc, selected, start, end=None, colors=None):
@@ -254,9 +253,10 @@ class TrelloDataProcessor(object):
             # We will select ALL lists
             selected = df.columns.values.tolist()
         if not len(colors):
-            # We want to create a random distribution that 
-            colors = 'bgrcmyk'  # classic
-            colors = ['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf']
+            # We want to create a random distribution per discussion here:
+            # https://matplotlib.org/users/dflt_style_changes.html#colors-color-cycles-and-color-maps
+            #colors = 'bgrcmyk'  # classic
+            colors = ['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # v2.0 default
         if df.shape[0] > 50:
             print('Greater than 50 date values!')
             # More than 50 dates to plot => need to switch to default xaxis handling
@@ -506,7 +506,7 @@ if __name__ == '__main__':
             # Create a visualisation of the static card distribution by List 
             graph = dp.createCardDistributionBarChart(cards,camelCase(boardName),colors=colors,reverse=reverse)
             print("Generated static card distribution in '{}'".format(graph))
-            #plt.show()
+            plt.show()
         elif arguments.get('timed'):
             boardName,selected,colors = procTrelloArguments(arguments)
             boardName,_,boardLists = getListsForTargetBoard(client,boardName)
