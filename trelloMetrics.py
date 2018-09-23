@@ -505,10 +505,12 @@ def main():
         %s static --b="My Board" --c="r,g,orange"
         4. Create time series visualistion of actions on all Lists in 'My Board' using default color palette:
         %s timed --b="Wand App"
-        5. Create time series visualisations of actions on Lists P1,P2,New P in 'My Board' with given colors:
+        5. Write time series visualistion of all actions in 'My Board' Lists using 'summer' color map to 'output.png':
+        %s timed --b="Wand" --l="--c=summer --o="output.png"
+        6. Create time series visualisations of actions on Lists P1,P2,New P in 'My Board' with given colors:
         %s timed --b="My Board" --l="P1,P2,New P" --c="r,g,b"
 
-        """ % tuple([PROGRAM] * 12)
+        """ % tuple([PROGRAM] * 13)
 
     arguments = docopt.docopt(usage)
     #print(arguments)
