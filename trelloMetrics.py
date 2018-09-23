@@ -16,8 +16,8 @@ import sys, os, getpass
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
-#import matplotlib.dates as mdates
 import matplotlib.ticker as ticker
+from matplotlib import cm
 import seaborn as sns
 # use Seaborn styles
 sns.set()
@@ -70,8 +70,11 @@ class RESTHandler(object):
         prepared = req.prepare()
         verbose and self.dumpRequest(prepared,isPost=False)
         s = requests.Session()
-        r = s.send(prepared)
-        verbose and self.dumpResponse(r)
+        try:
+            r = s.send(prepared)
+            verbose and self.dumpResponse(r)
+        except e:
+            print("Failed: '{}'".format(e))
         return r
 
     def postRequest(self,command,body='',headers={},verbose=False):
@@ -83,8 +86,11 @@ class RESTHandler(object):
         prepared = req.prepare()
         verbose and self.dumpRequest(prepared,isPost=True)
         s = requests.Session()
-        r = s.send(prepared)
-        verbose and self.dumpResponse(r)
+        try:
+            r = s.send(prepared)
+            verbose and self.dumpResponse(r)
+        except e:
+            print("Failed: '{}'".format(e))
         return r
 
     def dumpRequest(self,request,isPost):
@@ -201,11 +207,38 @@ class TrelloClient(object):
 
 
 class TrelloDataProcessor(object):
-    def __init__(self,verbose=False):
+    def __init__(self,force,verbose=False):
         self.verbose = verbose
+        self.force = force
+        self.start = None
+        self.cards = None
+        self.counts = None
+        if os.path.exists('cards.csv'):
+            self.cards = pd.read_csv('cards.csv')
+        if os.path.exists('counts.csv'):
+            self.counts = pd.read_csv('counts.csv')
 
-    def createCardDistributionBarChart(self, cards, desc, colors=None, reverse=False):
+    def getCards(self):
+        return self.cards
+
+    def getCounts(self):
+        return self.counts
+
+    def getStart(self):
+        start = None
+        if os.path.exists('.start'):
+            with open('.start','r') as f:
+                start = f.read()
+        return start
+
+    def setStart(self,start):
+        with open('.start','w') as f:
+            f.write(start)
+
+    def createCardDistributionBarChart(self, cards, desc, colors=None, reverse=False, output=None):
         df = pd.DataFrame(cards)
+        if self.force or not os.path.exists('cards.csv'):
+            df.to_csv('cards.csv')
         print("{} rows, {} columns".format(df.shape[0],df.shape[1]))
         gps = df.groupby(['list'])
         longest = 0
@@ -216,8 +249,6 @@ class TrelloDataProcessor(object):
         longest += int(longest/20)
         self.verbose and print("longest value={}".format(longest))
         today = arrow.utcnow().format("YYYY-MM-DD")
-        if not len(colors):
-            colors = ['blue'] * nrows
         if reverse:
             buckets = df.groupby(['list']).size()[::-1]
             colors = colors[::-1]
@@ -225,21 +256,31 @@ class TrelloDataProcessor(object):
             buckets = df.groupby(['list']).size()
         if (nrows != len(colors)):
             print("Mismatch between number of colors {} and number of rows {} in graph!".format(len(colors),nrows))
+        cmap = cm.get_cmap('jet') 
         if longest > 50:
-            ax = buckets.\
-                plot(kind='barh',color=colors,title='Current {} distribution {}'.format(desc,today),figsize=(18,9))
+            if colors:
+                ax = buckets.plot(kind='barh',color=colors,title='Current {} distribution {}'.format(desc,today),figsize=(18,9))
+            else:
+                ax = buckets.plot(kind='barh',cmap=cmap,title='Current {} distribution {}'.format(desc,today),figsize=(18,9))
         else:
-            ax = buckets.\
-                plot(kind='barh',xticks=list(range(0,longest)),color=colors,title='Current {} distribution {}'.format(desc,today),figsize=(18,9))
+            if colors:
+                ax = buckets.plot(kind='barh',xticks=list(range(0,longest)),color=colors,title='Current {} distribution {}'.format(desc,today),figsize=(18,9))
+            else:
+                ax = buckets.plot(kind='barh',xticks=list(range(0,longest)),cmap=cmap,title='Current {} distribution {}'.format(desc,today),figsize=(18,9))
             ax.set_xticklabels(list(range(0,longest)))
         ax.set_ylabel('Trello List')
         ax.set_xlabel('count')
-        name = '{}Snapshot_{}.png'.format(desc, today)
+        if output:
+            name = output
+        else:
+            name = '{}Snapshot_{}.png'.format(desc, today)
         plt.savefig(name)
         return name
 
-    def createCardTimeSeriesStackedBarChart(self, counts, desc, selected, start, end=None, colors=None):
+    def createCardTimeSeriesStackedBarChart(self, counts, desc, selected, start, end=None, colors=None, output=None):
         df = pd.DataFrame(counts)
+        if self.force or not os.path.exists('counts.csv'):
+            df.to_csv('counts.csv')
         df.date = pd.to_datetime(df.date)
         datetimeArr = list(map(formatDateTime,df['date'].tolist()))
         # Set index of df to 'date' column and then delete 
@@ -247,21 +288,29 @@ class TrelloDataProcessor(object):
         df = df.drop(columns=['date'])
         print("{} rows, {} columns".format(df.shape[0],df.shape[1]))
         print("Start date = {}".format(start))
+        print("Colors: {}".format(colors))
         assert(len(counts) == df.shape[0])
         today = arrow.utcnow().format("YYYY-MM-DD")
         if not len(selected):
             # We will select ALL lists
             selected = df.columns.values.tolist()
-        if not len(colors):
-            # We want to create a random distribution per discussion here:
-            # https://matplotlib.org/users/dflt_style_changes.html#colors-color-cycles-and-color-maps
-            #colors = 'bgrcmyk'  # classic
-            colors = ['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # v2.0 default
+        #if not len(colors):
+        #    # We want to create a random distribution per discussion here:
+        #    # https://matplotlib.org/users/dflt_style_changes.html#colors-color-cycles-and-color-maps
+        #    #colors = 'bgrcmyk'  # classic
+        #    colors = ['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # v2.0 default
+        if colors[0] in ['summer','autumn','winter','spring','cool']:
+            cmap = cm.get_cmap(colors[0])
+            colors = None
         if df.shape[0] > 50:
             print('Greater than 50 date values!')
             # More than 50 dates to plot => need to switch to default xaxis handling
-            ax = df[selected].plot(kind='bar',stacked=True,color=colors,xticks=df.index,
-                title='{} Board time series {}'.format(desc,today),figsize=(18,9))
+            if colors:
+                ax = df[selected].plot(kind='bar',stacked=True,color=colors,xticks=df.index,
+                    title='{} Board time series {}'.format(desc,today),figsize=(18,9))
+            else:
+                ax = df[selected].plot(kind='bar',stacked=True,cmap=cmap,xticks=df.index,
+                    title='{} Board time series {}'.format(desc,today),figsize=(18,9))                    
             #ax.xaxis_date()
             # Make most of the ticklabels empty so the labels don't get too crowded
             ticklabels = ['']*len(df.index)
@@ -273,8 +322,12 @@ class TrelloDataProcessor(object):
             plt.xticks(rotation=90)
             #plt.gcf().autofmt_xdate()
         else:
-            ax = df[selected].plot(kind='bar',stacked=True,color=colors,xticks=df.index,
-                title='{} time series {}'.format(desc,today),figsize=(18,9))
+            if colors:
+                ax = df[selected].plot(kind='bar',stacked=True,color=colors,xticks=df.index,
+                    title='{} time series {}'.format(desc,today),figsize=(18,9))
+            else:
+                ax = df[selected].plot(kind='bar',stacked=True,cmap=cmap,xticks=df.index,
+                    title='{} time series {}'.format(desc,today),figsize=(18,9))
             # Not using this any more - going with ticklabels approach
             #ax.set_xticklabels(datetimeArr)
             #
@@ -300,7 +353,10 @@ class TrelloDataProcessor(object):
         #ax.plot(kind='line')
         #ax.axvline(x=featurecomplete, ymin=0, ymax=40, linestyle=':',color='k')
         #
-        name = '{}TimeSeries_{}.png'.format(desc,today)
+        if output:
+            name = output
+        else:
+            name = '{}TimeSeries_{}.png'.format(desc,today)
         plt.subplots_adjust(bottom=0.4) # Provides margin at bottom to accommodate axis
         plt.savefig(name)
         return name
@@ -414,9 +470,12 @@ def procTrelloArguments(arguments):
     tlists = []
     if arguments.get('--l'):
         tlists = arguments.get('--l').split(',')
-    return boardName,tlists,tcolors
+    output = None
+    if arguments.get('--o'):
+        output = arguments.get('--o')
+    return boardName,tlists,tcolors,output
 
-if __name__ == '__main__':
+def main():
     import docopt
     usage="""
 
@@ -425,8 +484,8 @@ if __name__ == '__main__':
         Usage:
         %s boards [-v]
         %s lists --b=<board> [-v]
-        %s static --b=<board> [--c=<colors>] [-v] [-r]
-        %s timed --b=<board> [--l=<lists>] [--c=<colors>] [-v]
+        %s static --b=<board> [--c=<colors>] [--o=<output>] [-v] [-r] [-f]
+        %s timed --b=<board> [--l=<lists>] [--c=<colors>] [--o=<output>] [-v] [-f]
         %s -h | --help
         %s -V | --version
 
@@ -435,6 +494,7 @@ if __name__ == '__main__':
         -v --verbose            Verbose mode.
         -V --version            Show version.
         -r --reverse            Reverse bars
+        -f --force              Force data regeneration
 
         Examples:
         1. Get info on all Trello Boards:
@@ -458,6 +518,9 @@ if __name__ == '__main__':
     reverse = False
     if arguments.get('--reverse') or arguments.get('-r'):
         reverse = True
+    force = False
+    if arguments.get('--force') or arguments.get('-f'):
+        force = True
     #initLogging(LOGFILE,VERBOSE)
     if arguments.get('--version') or arguments.get('-V'):
         print("%s version %s" % (PROGRAM,VERSION))
@@ -469,7 +532,7 @@ if __name__ == '__main__':
             rootUrl = 'https://api.trello.com/1'
             handler = RESTHandler(rootUrl)
             client = TrelloClient(handler,verbose)
-            dp = TrelloDataProcessor()
+            dp = TrelloDataProcessor(force)
         except:
             url = 'https://developers.trello.com/docs/api-introduction'
             print("Failed to set up Trello client")  
@@ -481,45 +544,62 @@ if __name__ == '__main__':
                 id,name = brd.get('id'),brd.get('name')
                 print("'{}' (id={})".format(name,id))
         elif arguments.get('lists'):
-            boardName,tlists,tcolors = procTrelloArguments(arguments)
+            boardName,tlists,tcolors,_ = procTrelloArguments(arguments)
             boardName,boardId,boardLists = getListsForTargetBoard(client,boardName)
             print("==== board='{}', id={} ====".format(boardId,boardName))
             for ls in boardLists:
                 id,name = ls.get('id'),ls.get('name')
                 print("'{}' (id={})".format(name,id))
         elif arguments.get('static'):
-            boardName,lists,colors = procTrelloArguments(arguments)
-            boardName,_,boardLists = getListsForTargetBoard(client,boardName)
-            # Get Cards on each target Board List
-            cards = []
-            for ls in boardLists:
-                id,name = ls.get('id'),ls.get('name')
-                listCards = client.getCardsByList(id)
-                for i,card in enumerate(listCards):
-                    if len(name) > 13:
-                        name = name[:13]
-                    card['list'] = name
-                    cards.append(card)
-                    verbose and print("{:03d}. list='{}', name='{}', id={}".format(i,card.get('list'),card.get('name'),card.get('id')))
-                verbose and print("list='{}', listCards={}".format(card.get('list'),len(listCards)))
-            print("{} Board cards found".format(len(cards)))
+            boardName,lists,colors,output = procTrelloArguments(arguments)
+            cards = dp.getCards()
+            if force:
+                print("Forcing data generation")
+                # We have to go and pull and process all the data 
+                boardName,_,boardLists = getListsForTargetBoard(client,boardName)
+                # Get Cards on each target Board List
+                cards = []
+                for ls in boardLists:
+                    id,name = ls.get('id'),ls.get('name')
+                    listCards = client.getCardsByList(id)
+                    for i,card in enumerate(listCards):
+                        if len(name) > 13:
+                            name = name[:13]
+                        card['list'] = name
+                        cards.append(card)
+                        verbose and print("{:03d}. list='{}', name='{}', id={}".format(i,card.get('list'),card.get('name'),card.get('id')))
+                    verbose and print("list='{}', listCards={}".format(card.get('list'),len(listCards)))
+                print("{} Board cards found".format(len(cards)))
+            else:
+                print("Using 'cards.csv'")
             # Create a visualisation of the static card distribution by List 
-            graph = dp.createCardDistributionBarChart(cards,camelCase(boardName),colors=colors,reverse=reverse)
+            graph = dp.createCardDistributionBarChart(cards,camelCase(boardName),colors=colors,reverse=reverse,output=output)
             print("Generated static card distribution in '{}'".format(graph))
-            plt.show()
+            #plt.show()
         elif arguments.get('timed'):
-            boardName,selected,colors = procTrelloArguments(arguments)
-            boardName,_,boardLists = getListsForTargetBoard(client,boardName)
-            # Get Actions on each List 
-            cardIds = findUniqueCardIdsForActions(client.getActionsByList(boardLists))
-            print("{} unique cards found".format(len(cardIds)))
-            actions = flattenActions(client.getActionsByCard(cardIds))
-            print("{} unique card actions found".format(len(actions)))
-            # Find minimum date in actions array and use that for start. 
-            dates = sorted([d.get('date') for d in actions])
-            start = dates[0]
-            counts = dp.getActionCountsOverTime(actions,start)
+            boardName,selected,colors,output = procTrelloArguments(arguments)
+            counts = dp.getCounts()
+            start = dp.getStart()
+            if force:
+                print("Forcing data generation")
+                boardName,_,boardLists = getListsForTargetBoard(client,boardName)
+                # Get Actions on each List 
+                cardIds = findUniqueCardIdsForActions(client.getActionsByList(boardLists))
+                print("{} unique cards found".format(len(cardIds)))
+                actions = flattenActions(client.getActionsByCard(cardIds))
+                print("{} unique card actions found".format(len(actions)))
+                # Find minimum date in actions array and use that for start. 
+                dates = sorted([d.get('date') for d in actions])
+                start = dates[0]
+                dp.setStart(start)
+                counts = dp.getActionCountsOverTime(actions,start)
+            else:
+                print("Using 'counts.csv'")
             # Create a visualisation of the time series distribution of Cards 
-            graph = dp.createCardTimeSeriesStackedBarChart(counts,camelCase(boardName),selected,start,colors=colors)
+            graph = dp.createCardTimeSeriesStackedBarChart(counts,camelCase(boardName),selected,start,colors=colors,output=output)
             print("Generated time series distribution in '{}'".format(graph))
-            plt.show()
+            #plt.show()
+
+if __name__ == "__main__":
+    main()
+    sys.exit(0)
