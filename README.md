@@ -42,6 +42,7 @@ A full example of working code showing how to integrate `trelloMetrics.py` comma
 ```
 import subprocess
 import os, requests
+import arrow
 
 def getToken(tokenFile,credType):
 	if os.path.exists(tokenFile):
@@ -68,29 +69,33 @@ def post_image(filename, token, channels):
 		headers={'Accept': 'application/json'}, files=f)
 	return response.text
 
-def createStaticVisualisation(date,force=False,toSlack=False):
+def createStaticVisualisation(date,board,force=False,toSlack=False,channel=''):
 	try:
-		o = "Static_{}.png".format(date)
+		o = "Example_{}.png".format(date)
 		if force:
-			cl = 'python trelloMetrics.py static -r --b="MyBoard" --c="g,y,pink,r,r,r,r,r" --o="{}" --force'.format(o)
+			c = 'python trelloMetrics.py static'
+			cl = '{} -r --b="{}" --c="g,y,pink,r,r,r,r,r" --o="{}" --force'.format(c,board,o)
 		else:
-			cl = 'python trelloMetrics.py static -r --b="MyBoard" --c="g,y,pink,r,r,r,r,r" --o="{}"'.format(o)
+			cl = '{} -r --b="{}" --c="g,y,pink,r,r,r,r,r" --o="{}"'.format(c,board,o)
 		r = subprocess.check_output(cl, shell=True,stderr=subprocess.STDOUT)
-		blurb = "Distribution of cards in MyBoard {}".format(date)
+		blurb = "Distribution of cards in {} {}".format(board,date)
 		if toSlack:
-			print(post_text(text=blurb, token=token, channel ='#reporting'))
-			print(post_image(filename=o, token=token, channels ='#reporting'))
+			print(post_text(text=blurb, token=token, channel =channel))
+			print(post_image(filename=o, token=token, channels =channel))
 		else:
 			print("Not pushing {} to Slack".format(o))
 	except subprocess.CalledProcessError as e:
-		raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
+		raise RuntimeError("command '{}' return with error (code {}): {}".\
+		  format(e.cmd, e.returncode, e.output))
 
 if __name__ == '__main__':
 	force = True
-	toSlack = True
+	toSlack = False
+	board = 'MyBoard'
+	ch = '#reporting'
 	token = getToken('.slacktoken','slack')
 	today = arrow.utcnow().format("DD-MM-YYYY")
-	createStaticVisualisation(today,force=force,toSlack=toSlack)
+	createStaticVisualisation(today,board,force=force,toSlack=toSlack,channel=ch)
 ```
 
 ## Installation

@@ -504,9 +504,9 @@ def main():
         3. Create static visualisation of card counts for Lists in 'My Board' with given colors:
         %s static --b="My Board" --c="r,g,orange"
         4. Create time series visualistion of actions on all Lists in 'My Board' using default color palette:
-        %s timed --b="Wand App"
+        %s timed --b="My Board"
         5. Write time series visualistion of all actions in 'My Board' Lists using 'summer' color map to 'output.png':
-        %s timed --b="Wand" --l="--c=summer --o="output.png"
+        %s timed --b="My Board" --l="--c=summer --o="output.png"
         6. Create time series visualisations of actions on Lists P1,P2,New P in 'My Board' with given colors:
         %s timed --b="My Board" --l="P1,P2,New P" --c="r,g,b"
 
