@@ -107,8 +107,8 @@ You will also need to set up a Trello Developer API Key and an API Token per the
 
 ## Outstanding
 * Add more support to `trelloMetrics.py` command line for basic Trello functionality.
-* Consider 
-* Work on making the script more modular.
+* Consider leveraging comprehensive [py-trello](https://github.com/sarumont/py-trello) for that basic functionality.
+* Work on making the script more modular to separate out Trello part from data analysis.
 * Look at analysing the contents of Cards in more detail.
 
 ## Licence 
