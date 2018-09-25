@@ -484,6 +484,7 @@ def main():
         Usage:
         %s boards [-v]
         %s lists --b=<board> [-v]
+        %s summary --b=<board> --l=<lists> [-v]
         %s static --b=<board> [--c=<colors>] [--o=<output>] [-v] [-r] [-f]
         %s timed --b=<board> [--l=<lists>] [--c=<colors>] [--o=<output>] [-v] [-f]
         %s -h | --help
@@ -501,16 +502,17 @@ def main():
         %s boards
         2.  Get info on all Lists in Trello Board 'My Board':
         %s lists --b="My Board"
-        3. Create static visualisation of card counts for Lists in 'My Board' with given colors:
+        3.  Get Card titles for Lists P2 and P3 in Trello Board 'My Board':
+        %s summary --b="My Board" --l="P1,P2"
+        4. Create static visualisation of card counts for Lists in 'My Board' with given colors:
         %s static --b="My Board" --c="r,g,orange"
-        4. Create time series visualistion of actions on all Lists in 'My Board' using default color palette:
+        5. Create time series visualistion of actions on all Lists in 'My Board' using default color palette:
         %s timed --b="My Board"
-        5. Write time series visualistion of all actions in 'My Board' Lists using 'summer' color map to 'output.png':
-        %s timed --b="My Board" --l="--c=summer --o="output.png"
-        6. Create time series visualisations of actions on Lists P1,P2,New P in 'My Board' with given colors:
+        6. Write time series visualistion of all actions in 'My Board' Lists using 'summer' color map to 'output.png':
+        %s timed --b="My Board" --l="P1,P2,New P"--c=summer --o="output.png"
+        7. Create time series visualisations of actions on Lists P1,P2,New P in 'My Board' with given colors:
         %s timed --b="My Board" --l="P1,P2,New P" --c="r,g,b"
-
-        """ % tuple([PROGRAM] * 13)
+        """ % tuple([PROGRAM] * 15)
 
     arguments = docopt.docopt(usage)
     #print(arguments)
@@ -552,6 +554,29 @@ def main():
             for ls in boardLists:
                 id,name = ls.get('id'),ls.get('name')
                 print("'{}' (id={})".format(name,id))
+        elif arguments.get('summary'):
+            boardName,tlists,_,_ = procTrelloArguments(arguments)
+            boardName,boardId,boardLists = getListsForTargetBoard(client,boardName)
+            boardListNames = [b.get('name') for b in boardLists]
+            #print("==== board='{}', id={}, targetlists={} ====".format(boardId,boardName,tlists))
+            #print("boardListNames:\n{}".format(boardListNames))
+            for ls in boardLists:
+                if ls.get('name') in tlists:
+                    id,name = ls.get('id'),ls.get('name')
+                    listCards = client.getCardsByList(id)
+                    for i,card in enumerate(listCards):
+                        name = card.get('name')
+                        url = card.get('shortUrl')
+                        def procLabel(name,color):
+                            if name in ['bug']:
+                                return ':{}:'.format(name)
+                            elif name in ['world']:
+                                return ':globe_spin:'
+                            elif color in ['red','blue']:
+                                return ':{}_circle:'.format(color)
+                            return name
+                        labels = ' '.join(sorted([procLabel(l.get('name').lower(),l.get('color').lower()) for l in card.get('labels')]))
+                        print("{:d}. `{}` {} labels={}".format(i+1,name,url,labels))
         elif arguments.get('static'):
             boardName,lists,colors,output = procTrelloArguments(arguments)
             cards = dp.getCards()
