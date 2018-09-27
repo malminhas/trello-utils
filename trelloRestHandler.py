@@ -52,7 +52,8 @@ class TrelloRESTHandler(object):
         try:
             r = s.send(prepared)
             verbose and self.dumpResponse(r)
-        except e:
+        except Exception as e:
+            r = e
             print("Failed: '{}'".format(e))
         return r
 
@@ -68,7 +69,8 @@ class TrelloRESTHandler(object):
         try:
             r = s.send(prepared)
             verbose and self.dumpResponse(r)
-        except e:
+        except Exception as e:
+            r = e
             print("Failed: '{}'".format(e))
         return r
 
