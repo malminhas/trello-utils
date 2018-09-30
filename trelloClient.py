@@ -7,6 +7,10 @@
 # Copyright (c) 2018 Kano Computing. All Rights Reserved.
 # Licence: GPLv3
 #
+# Setup and Installation
+# ----------------------
+# 1. Configure your Trello credentials using the recipe outlined here:
+# https://developers.trello.com/docs/api-introduction 
 
 import requests
 

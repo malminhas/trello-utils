@@ -18,6 +18,9 @@
 # https://hooks.slack.com/services/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
 #
 
+import os
+import requests
+
 SLACK_TOKEN_FILE 	= '.slacktoken'
 
 class SlackClient(object):
@@ -27,7 +30,7 @@ class SlackClient(object):
 	def getToken(self,tokenFile,credType):
 		if os.path.exists(tokenFile):
 			with open(tokenFile,'r') as f:
-				self.token = f.read()
+				token = f.read()
 				assert(len(token))
 		else:
 			token = getpass.getpass('{} token:'.format(credType))
@@ -35,24 +38,23 @@ class SlackClient(object):
 				f.write(token)
 		return token
 
-	def post_text(self,text, token, channels):
+	def post_text(self, text, channels):
+		assert(self.token)
 		responses = []
 		for channel in channels:
 			response = requests.post(url='https://slack.com/api/chat.postMessage', data=
-				{'token': token, 'channel': channel, 'text': text}, 
+				{'token': self.token, 'channel': channel, 'text': text}, 
 				headers={'Accept': 'application/json'})
 			responses.append(response.text)
 		return responses
 
-	def post_image(self,filename, token, channels):
-		''' Using token '''
+	def post_image(self, filename, channels):
+		assert(self.token)
 		responses = []
 		f = {'file': (filename, open(filename, 'rb'), 'image/png', {'Expires':'0'})}
 		for channel in channels:
 			response = requests.post(url='https://slack.com/api/files.upload', data=
-				{'token': token, 'channels': channel, 'media': f}, 
+				{'token': self.token, 'channels': channel, 'media': f}, 
 				headers={'Accept': 'application/json'}, files=f)
 			responses.append(response.text)
 		return responses
-
-

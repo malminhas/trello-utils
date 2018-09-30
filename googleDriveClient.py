@@ -25,7 +25,6 @@
 # (gdrive) $ python googleDriveClient.py
 #
 
-import subprocess
 from googleDriveHandler import GoogleDriveHandler
 GDRIVE_CLIENT_ID_FILE       = '.googleclientid'
 GDRIVE_CLIENT_SECRET_FILE   = '.googleclientsecret'
