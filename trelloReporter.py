@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
-# trelloMetrics.py
-# ----------------
+# trelloReporter.py
+# -----------------
 # Script to generate metrics data from Trello Boards.
 #
 # Mal Minhas <mal@kano.me>
@@ -19,10 +19,9 @@ from trelloRestHandler import TrelloRESTHandler
 from trelloDataProcessor import TrelloDataProcessor,formatDateTime
 
 PROGRAM             = __file__
-VERSION             = '0.1'
+VERSION             = '0.5'
 
 camelCase = lambda s: ''.join(x for x in s.title() if not x.isspace())
-
 
 def findUniqueCardIdsForActions(actions):
     cardIds = set([])
@@ -177,7 +176,7 @@ def main():
     import docopt
     usage="""
 
-        %s - trelloBox
+        %s
         --------------
         Usage:
         %s boards [-v]
@@ -278,7 +277,6 @@ def main():
             graph = dp.createCardTimeSeriesStackedBarChart(counts,camelCase(boardName),selected,start,colors=colors,output=output)
             print("Generated time series distribution in '{}'".format(graph))
             #plt.show()
-
 
 if __name__ == "__main__":
     main()
