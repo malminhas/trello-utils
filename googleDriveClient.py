@@ -25,6 +25,7 @@
 # (gdrive) $ python googleDriveClient.py
 #
 
+import os
 from googleDriveHandler import GoogleDriveHandler
 GDRIVE_CLIENT_ID_FILE       = '.googleclientid'
 GDRIVE_CLIENT_SECRET_FILE   = '.googleclientsecret'
@@ -38,6 +39,20 @@ class GoogleDriveClient(object):
         assert(len(gsecret) == 24)
         self.handler.createSettingsYaml(gclientid,gsecret)
         self.drive = self.handler.getGoogleDriveInstance()
+
+    def getFiles(self, folder_id='root', filters=''):
+        '''
+        drive: authenticated GoogleDrive instance
+        folder_id: uid for folder (see: https://stackoverflow.com/questions/40224559/list-of-file-in-a-folder-drive-api-pydrive/40236586)
+        filters: search string to limit files returned
+        '''
+        l = self.drive.ListFile({'q': "'{}' in parents and trashed=false".format(folder_id)}).GetList()
+        files = [item for item in l if item.get('mimeType') != 'application/vnd.google-apps.folder' and filters in item.get('title')]
+        return files
+
+    def getFileList(self,folder_id='root',filters=''):
+        files = self.getFiles(folder_id,filters)
+        return [{'title':item.get('title'),'mime_type':item.get('mimeType'),'id':item.get('id')} for item in files]
 
     def uploadFile(self, name, mimeType='',permType='user',permValue='user',permRole='owner'):
         '''
