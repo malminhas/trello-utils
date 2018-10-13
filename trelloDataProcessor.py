@@ -26,8 +26,8 @@ class TrelloDataProcessor(object):
         self.verbose = verbose
         self.force = force
         self.start = None
-        self.cards = None
-        self.counts = None
+        self.cards = pd.DataFrame()
+        self.counts = pd.DataFrame()
         if os.path.exists('cards.csv'):
             self.cards = pd.read_csv('cards.csv')
         if os.path.exists('counts.csv'):
@@ -224,4 +224,3 @@ class TrelloDataProcessor(object):
             counts.append(dico)
         assert(len(counts) == len(dts))
         return counts
-

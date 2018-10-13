@@ -134,7 +134,7 @@ def dumpBoards(boards):
         print("'{}' (id={})".format(name,id))
 
 def dumpBoardLists(boardName,boardId,boardLists):
-    print("==== board='{}', id={} ====".format(boardName,boardId))
+    print("==== board='{}', id={} {} lists ====".format(boardName,boardId,len(boardLists)))
     for ls in boardLists:
         id,name = ls.get('id'),ls.get('name')
         print("'{}' (id={})".format(name,id))
@@ -254,8 +254,10 @@ def main():
             print(listSummary)
         elif arguments.get('static'):
             boardName,lists,colors,output = procTrelloArguments(arguments)
+            print(lists)
+            print(colors)
             cards = dp.getCards()
-            if force:
+            if force or cards.empty:
                 print("Forcing new cards data generation")
                 cards = generateCards(client,boardName,verbose)
             else:
@@ -268,7 +270,7 @@ def main():
             boardName,selected,colors,output = procTrelloArguments(arguments)
             counts = dp.getCounts()
             start = dp.getStart()
-            if force:
+            if force or counts.empty:
                 print("Forcing new card counts data generation")
                 counts = generateCardCounts(client,dp,boardName,verbose)
             else:
